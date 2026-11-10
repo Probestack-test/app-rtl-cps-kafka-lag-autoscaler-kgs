@@ -1,0 +1,89 @@
+_format_version: "3.0"
+_transform: true
+
+########################################################
+# SERVICES
+########################################################
+
+services:
+  - name: kafka-lag-autoscaler
+    host: kafka-lag-autoscaler
+    port: 443
+    protocol: https
+    path: /api
+    retries: 5
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    routes:
+      - name: kafka-lag-autoscaler-get-api-v1-payments-autoscalers
+        protocols:
+          - https
+          - http
+        methods:
+          - GET
+        hosts:
+          - api.example.com
+        paths:
+          - /api/v1/payments/autoscalers
+        strip_path: true
+        preserve_host: false
+        https_redirect_status_code: 426
+      - name: kafka-lag-autoscaler-post-api-v1-payments-autoscalers
+        protocols:
+          - https
+          - http
+        methods:
+          - POST
+        hosts:
+          - api.example.com
+        paths:
+          - /api/v1/payments/autoscalers
+        strip_path: true
+        preserve_host: false
+        https_redirect_status_code: 426
+      - name: kafka-lag-autoscaler-get-api-v1-payments-autoscalers-autoscalerid
+        protocols:
+          - https
+          - http
+        methods:
+          - GET
+        hosts:
+          - api.example.com
+        paths:
+          - /api/v1/payments/autoscalers/{autoscalerId}
+        strip_path: true
+        preserve_host: false
+        https_redirect_status_code: 426
+      - name: kafka-lag-autoscaler-post-api-v1-payments-autoscalers-autoscalerid-override
+        protocols:
+          - https
+          - http
+        methods:
+          - POST
+        hosts:
+          - api.example.com
+        paths:
+          - /api/v1/payments/autoscalers/{autoscalerId}/override
+        strip_path: true
+        preserve_host: false
+        https_redirect_status_code: 426
+
+########################################################
+# PLUGINS
+########################################################
+
+plugins:
+  []
+
+########################################################
+# UPSTREAMS + TARGETS
+########################################################
+
+upstreams:
+  - name: kafka-lag-autoscaler
+    algorithm: round-robin
+    slots: 10000
+    targets:
+      - target: api.example.com:443
+        weight: 100

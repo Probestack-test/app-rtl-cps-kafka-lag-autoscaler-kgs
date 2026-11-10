@@ -1,0 +1,1041 @@
+{
+  "info": {
+    "name": "Kafka Lag Autoscaler Postman Collection",
+    "description": "Intelligent autoscaling for Kafka consumer groups based on real-time lag, \nthroughput, and predicted workload. Scales consumer pods up within seconds \nof lag spikes, scales down gracefully after catch-up, and respects peak \nhours, cost budgets, and per-topic scaling limits. Eliminates the classic \n\"consumer lag built up overnight because nobody was watching\" scenario \nwhile preventing runaway consumer sprawl that inflates cloud bills.\n\nOpenAPI version: 3.0.3",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://kafka-autoscaler.forgesphere.lightning.com/v1",
+      "type": "string",
+      "description": "Override with the base URL of the deployed Kong gateway."
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clusterName",
+      "value": "",
+      "type": "string",
+      "description": "Filter by Kafka cluster."
+    },
+    {
+      "key": "namespace",
+      "value": "",
+      "type": "string",
+      "description": "Filter by Kubernetes namespace."
+    },
+    {
+      "key": "owner",
+      "value": "",
+      "type": "string",
+      "description": "Filter by owning team."
+    },
+    {
+      "key": "status",
+      "value": "",
+      "type": "string",
+      "description": "Filter by autoscaler status."
+    },
+    {
+      "key": "hasHighLag",
+      "value": "",
+      "type": "string",
+      "description": "Only show autoscalers currently above their scale-up threshold."
+    },
+    {
+      "key": "atMaxReplicas",
+      "value": "",
+      "type": "string",
+      "description": "Only show autoscalers running at maxReplicas (potentially under-scaled)."
+    },
+    {
+      "key": "sortBy",
+      "value": "",
+      "type": "string",
+      "description": "Sort order."
+    },
+    {
+      "key": "page",
+      "value": "",
+      "type": "string",
+      "description": "Page number (zero-based)."
+    },
+    {
+      "key": "size",
+      "value": "",
+      "type": "string",
+      "description": "Number of items per page."
+    },
+    {
+      "key": "autoscalerId",
+      "value": "",
+      "type": "string",
+      "description": "Unique identifier of the autoscaler."
+    },
+    {
+      "key": "includeScalingHistory",
+      "value": "",
+      "type": "string",
+      "description": "Include last 50 scaling events."
+    },
+    {
+      "key": "includePartitionLag",
+      "value": "",
+      "type": "string",
+      "description": "Include per-partition lag breakdown (useful for hotspot detection)."
+    }
+  ],
+  "item": [
+    {
+      "name": "Register an autoscaler for a Kafka consumer group",
+      "request": {
+        "method": "POST",
+        "description": "Register an autoscaler for a Kafka consumer group\n\nResponses:\n- 201: Autoscaler registered and active.\n- 400: Response\n- 409: An autoscaler already exists for this consumer group.\n- 500: Response",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/autoscalers",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "autoscalers"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "201 Autoscaler registered and active.",
+          "originalRequest": {
+            "method": "POST",
+            "description": "Register an autoscaler for a Kafka consumer group\n\nResponses:\n- 201: Autoscaler registered and active.\n- 400: Response\n- 409: An autoscaler already exists for this consumer group.\n- 500: Response",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "Autoscaler registered and active.",
+          "code": 201,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "400",
+          "originalRequest": {
+            "method": "POST",
+            "description": "Register an autoscaler for a Kafka consumer group\n\nResponses:\n- 201: Autoscaler registered and active.\n- 400: Response\n- 409: An autoscaler already exists for this consumer group.\n- 500: Response",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "400",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "409 An autoscaler already exists for this consumer group.",
+          "originalRequest": {
+            "method": "POST",
+            "description": "Register an autoscaler for a Kafka consumer group\n\nResponses:\n- 201: Autoscaler registered and active.\n- 400: Response\n- 409: An autoscaler already exists for this consumer group.\n- 500: Response",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "An autoscaler already exists for this consumer group.",
+          "code": 409,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "500",
+          "originalRequest": {
+            "method": "POST",
+            "description": "Register an autoscaler for a Kafka consumer group\n\nResponses:\n- 201: Autoscaler registered and active.\n- 400: Response\n- 409: An autoscaler already exists for this consumer group.\n- 500: Response",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "500",
+          "code": 500,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        }
+      ]
+    },
+    {
+      "name": "List all autoscalers",
+      "request": {
+        "method": "GET",
+        "description": "List all autoscalers\n\nResponses:\n- 200: List of autoscalers retrieved successfully.\n- 400: Response\n- 500: Response",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/autoscalers?clusterName={{clusterName}}&namespace={{namespace}}&owner={{owner}}&status={{status}}&hasHighLag={{hasHighLag}}&atMaxReplicas={{atMaxReplicas}}&sortBy={{sortBy}}&page={{page}}&size={{size}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "autoscalers"
+          ],
+          "query": [
+            {
+              "key": "clusterName",
+              "value": "{{clusterName}}",
+              "disabled": true,
+              "description": "Filter by Kafka cluster."
+            },
+            {
+              "key": "namespace",
+              "value": "{{namespace}}",
+              "disabled": true,
+              "description": "Filter by Kubernetes namespace."
+            },
+            {
+              "key": "owner",
+              "value": "{{owner}}",
+              "disabled": true,
+              "description": "Filter by owning team."
+            },
+            {
+              "key": "status",
+              "value": "{{status}}",
+              "disabled": true,
+              "description": "Filter by autoscaler status."
+            },
+            {
+              "key": "hasHighLag",
+              "value": "{{hasHighLag}}",
+              "disabled": true,
+              "description": "Only show autoscalers currently above their scale-up threshold."
+            },
+            {
+              "key": "atMaxReplicas",
+              "value": "{{atMaxReplicas}}",
+              "disabled": true,
+              "description": "Only show autoscalers running at maxReplicas (potentially under-scaled)."
+            },
+            {
+              "key": "sortBy",
+              "value": "{{sortBy}}",
+              "disabled": true,
+              "description": "Sort order."
+            },
+            {
+              "key": "page",
+              "value": "{{page}}",
+              "disabled": true,
+              "description": "Page number (zero-based)."
+            },
+            {
+              "key": "size",
+              "value": "{{size}}",
+              "disabled": true,
+              "description": "Number of items per page."
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "200 List of autoscalers retrieved successfully.",
+          "originalRequest": {
+            "method": "GET",
+            "description": "List all autoscalers\n\nResponses:\n- 200: List of autoscalers retrieved successfully.\n- 400: Response\n- 500: Response",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers?clusterName={{clusterName}}&namespace={{namespace}}&owner={{owner}}&status={{status}}&hasHighLag={{hasHighLag}}&atMaxReplicas={{atMaxReplicas}}&sortBy={{sortBy}}&page={{page}}&size={{size}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers"
+              ],
+              "query": [
+                {
+                  "key": "clusterName",
+                  "value": "{{clusterName}}",
+                  "disabled": true,
+                  "description": "Filter by Kafka cluster."
+                },
+                {
+                  "key": "namespace",
+                  "value": "{{namespace}}",
+                  "disabled": true,
+                  "description": "Filter by Kubernetes namespace."
+                },
+                {
+                  "key": "owner",
+                  "value": "{{owner}}",
+                  "disabled": true,
+                  "description": "Filter by owning team."
+                },
+                {
+                  "key": "status",
+                  "value": "{{status}}",
+                  "disabled": true,
+                  "description": "Filter by autoscaler status."
+                },
+                {
+                  "key": "hasHighLag",
+                  "value": "{{hasHighLag}}",
+                  "disabled": true,
+                  "description": "Only show autoscalers currently above their scale-up threshold."
+                },
+                {
+                  "key": "atMaxReplicas",
+                  "value": "{{atMaxReplicas}}",
+                  "disabled": true,
+                  "description": "Only show autoscalers running at maxReplicas (potentially under-scaled)."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "{{sortBy}}",
+                  "disabled": true,
+                  "description": "Sort order."
+                },
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "disabled": true,
+                  "description": "Page number (zero-based)."
+                },
+                {
+                  "key": "size",
+                  "value": "{{size}}",
+                  "disabled": true,
+                  "description": "Number of items per page."
+                }
+              ]
+            }
+          },
+          "status": "List of autoscalers retrieved successfully.",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "400",
+          "originalRequest": {
+            "method": "GET",
+            "description": "List all autoscalers\n\nResponses:\n- 200: List of autoscalers retrieved successfully.\n- 400: Response\n- 500: Response",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers?clusterName={{clusterName}}&namespace={{namespace}}&owner={{owner}}&status={{status}}&hasHighLag={{hasHighLag}}&atMaxReplicas={{atMaxReplicas}}&sortBy={{sortBy}}&page={{page}}&size={{size}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers"
+              ],
+              "query": [
+                {
+                  "key": "clusterName",
+                  "value": "{{clusterName}}",
+                  "disabled": true,
+                  "description": "Filter by Kafka cluster."
+                },
+                {
+                  "key": "namespace",
+                  "value": "{{namespace}}",
+                  "disabled": true,
+                  "description": "Filter by Kubernetes namespace."
+                },
+                {
+                  "key": "owner",
+                  "value": "{{owner}}",
+                  "disabled": true,
+                  "description": "Filter by owning team."
+                },
+                {
+                  "key": "status",
+                  "value": "{{status}}",
+                  "disabled": true,
+                  "description": "Filter by autoscaler status."
+                },
+                {
+                  "key": "hasHighLag",
+                  "value": "{{hasHighLag}}",
+                  "disabled": true,
+                  "description": "Only show autoscalers currently above their scale-up threshold."
+                },
+                {
+                  "key": "atMaxReplicas",
+                  "value": "{{atMaxReplicas}}",
+                  "disabled": true,
+                  "description": "Only show autoscalers running at maxReplicas (potentially under-scaled)."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "{{sortBy}}",
+                  "disabled": true,
+                  "description": "Sort order."
+                },
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "disabled": true,
+                  "description": "Page number (zero-based)."
+                },
+                {
+                  "key": "size",
+                  "value": "{{size}}",
+                  "disabled": true,
+                  "description": "Number of items per page."
+                }
+              ]
+            }
+          },
+          "status": "400",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "500",
+          "originalRequest": {
+            "method": "GET",
+            "description": "List all autoscalers\n\nResponses:\n- 200: List of autoscalers retrieved successfully.\n- 400: Response\n- 500: Response",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers?clusterName={{clusterName}}&namespace={{namespace}}&owner={{owner}}&status={{status}}&hasHighLag={{hasHighLag}}&atMaxReplicas={{atMaxReplicas}}&sortBy={{sortBy}}&page={{page}}&size={{size}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers"
+              ],
+              "query": [
+                {
+                  "key": "clusterName",
+                  "value": "{{clusterName}}",
+                  "disabled": true,
+                  "description": "Filter by Kafka cluster."
+                },
+                {
+                  "key": "namespace",
+                  "value": "{{namespace}}",
+                  "disabled": true,
+                  "description": "Filter by Kubernetes namespace."
+                },
+                {
+                  "key": "owner",
+                  "value": "{{owner}}",
+                  "disabled": true,
+                  "description": "Filter by owning team."
+                },
+                {
+                  "key": "status",
+                  "value": "{{status}}",
+                  "disabled": true,
+                  "description": "Filter by autoscaler status."
+                },
+                {
+                  "key": "hasHighLag",
+                  "value": "{{hasHighLag}}",
+                  "disabled": true,
+                  "description": "Only show autoscalers currently above their scale-up threshold."
+                },
+                {
+                  "key": "atMaxReplicas",
+                  "value": "{{atMaxReplicas}}",
+                  "disabled": true,
+                  "description": "Only show autoscalers running at maxReplicas (potentially under-scaled)."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "{{sortBy}}",
+                  "disabled": true,
+                  "description": "Sort order."
+                },
+                {
+                  "key": "page",
+                  "value": "{{page}}",
+                  "disabled": true,
+                  "description": "Page number (zero-based)."
+                },
+                {
+                  "key": "size",
+                  "value": "{{size}}",
+                  "disabled": true,
+                  "description": "Number of items per page."
+                }
+              ]
+            }
+          },
+          "status": "500",
+          "code": 500,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        }
+      ]
+    },
+    {
+      "name": "Get detailed state of an autoscaler",
+      "request": {
+        "method": "GET",
+        "description": "Get detailed state of an autoscaler\n\nResponses:\n- 200: Autoscaler details retrieved successfully.\n- 404: Response\n- 500: Response",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/autoscalers/:autoscalerId?includeScalingHistory={{includeScalingHistory}}&includePartitionLag={{includePartitionLag}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "autoscalers",
+            ":autoscalerId"
+          ],
+          "query": [
+            {
+              "key": "includeScalingHistory",
+              "value": "{{includeScalingHistory}}",
+              "disabled": true,
+              "description": "Include last 50 scaling events."
+            },
+            {
+              "key": "includePartitionLag",
+              "value": "{{includePartitionLag}}",
+              "disabled": true,
+              "description": "Include per-partition lag breakdown (useful for hotspot detection)."
+            }
+          ],
+          "variable": [
+            {
+              "key": "autoscalerId",
+              "value": "{{autoscalerId}}",
+              "description": "Unique identifier of the autoscaler."
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "200 Autoscaler details retrieved successfully.",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Get detailed state of an autoscaler\n\nResponses:\n- 200: Autoscaler details retrieved successfully.\n- 404: Response\n- 500: Response",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers/:autoscalerId?includeScalingHistory={{includeScalingHistory}}&includePartitionLag={{includePartitionLag}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers",
+                ":autoscalerId"
+              ],
+              "query": [
+                {
+                  "key": "includeScalingHistory",
+                  "value": "{{includeScalingHistory}}",
+                  "disabled": true,
+                  "description": "Include last 50 scaling events."
+                },
+                {
+                  "key": "includePartitionLag",
+                  "value": "{{includePartitionLag}}",
+                  "disabled": true,
+                  "description": "Include per-partition lag breakdown (useful for hotspot detection)."
+                }
+              ],
+              "variable": [
+                {
+                  "key": "autoscalerId",
+                  "value": "{{autoscalerId}}",
+                  "description": "Unique identifier of the autoscaler."
+                }
+              ]
+            }
+          },
+          "status": "Autoscaler details retrieved successfully.",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "404",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Get detailed state of an autoscaler\n\nResponses:\n- 200: Autoscaler details retrieved successfully.\n- 404: Response\n- 500: Response",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers/:autoscalerId?includeScalingHistory={{includeScalingHistory}}&includePartitionLag={{includePartitionLag}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers",
+                ":autoscalerId"
+              ],
+              "query": [
+                {
+                  "key": "includeScalingHistory",
+                  "value": "{{includeScalingHistory}}",
+                  "disabled": true,
+                  "description": "Include last 50 scaling events."
+                },
+                {
+                  "key": "includePartitionLag",
+                  "value": "{{includePartitionLag}}",
+                  "disabled": true,
+                  "description": "Include per-partition lag breakdown (useful for hotspot detection)."
+                }
+              ],
+              "variable": [
+                {
+                  "key": "autoscalerId",
+                  "value": "{{autoscalerId}}",
+                  "description": "Unique identifier of the autoscaler."
+                }
+              ]
+            }
+          },
+          "status": "404",
+          "code": 404,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "500",
+          "originalRequest": {
+            "method": "GET",
+            "description": "Get detailed state of an autoscaler\n\nResponses:\n- 200: Autoscaler details retrieved successfully.\n- 404: Response\n- 500: Response",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers/:autoscalerId?includeScalingHistory={{includeScalingHistory}}&includePartitionLag={{includePartitionLag}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers",
+                ":autoscalerId"
+              ],
+              "query": [
+                {
+                  "key": "includeScalingHistory",
+                  "value": "{{includeScalingHistory}}",
+                  "disabled": true,
+                  "description": "Include last 50 scaling events."
+                },
+                {
+                  "key": "includePartitionLag",
+                  "value": "{{includePartitionLag}}",
+                  "disabled": true,
+                  "description": "Include per-partition lag breakdown (useful for hotspot detection)."
+                }
+              ],
+              "variable": [
+                {
+                  "key": "autoscalerId",
+                  "value": "{{autoscalerId}}",
+                  "description": "Unique identifier of the autoscaler."
+                }
+              ]
+            }
+          },
+          "status": "500",
+          "code": 500,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        }
+      ]
+    },
+    {
+      "name": "Manually override autoscaling for a bounded time window",
+      "request": {
+        "method": "POST",
+        "description": "Manually override autoscaling for a bounded time window\n\nResponses:\n- 200: Override applied successfully.\n- 400: Response\n- 404: Response\n- 409: Autoscaler is not in a state that supports this override.\n- 500: Response",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/autoscalers/:autoscalerId/override",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "autoscalers",
+            ":autoscalerId",
+            "override"
+          ],
+          "variable": [
+            {
+              "key": "autoscalerId",
+              "value": "{{autoscalerId}}",
+              "description": "Unique identifier of the autoscaler."
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [
+        {
+          "name": "200 Override applied successfully.",
+          "originalRequest": {
+            "method": "POST",
+            "description": "Manually override autoscaling for a bounded time window\n\nResponses:\n- 200: Override applied successfully.\n- 400: Response\n- 404: Response\n- 409: Autoscaler is not in a state that supports this override.\n- 500: Response",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers/:autoscalerId/override",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers",
+                ":autoscalerId",
+                "override"
+              ],
+              "variable": [
+                {
+                  "key": "autoscalerId",
+                  "value": "{{autoscalerId}}",
+                  "description": "Unique identifier of the autoscaler."
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "Override applied successfully.",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "400",
+          "originalRequest": {
+            "method": "POST",
+            "description": "Manually override autoscaling for a bounded time window\n\nResponses:\n- 200: Override applied successfully.\n- 400: Response\n- 404: Response\n- 409: Autoscaler is not in a state that supports this override.\n- 500: Response",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers/:autoscalerId/override",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers",
+                ":autoscalerId",
+                "override"
+              ],
+              "variable": [
+                {
+                  "key": "autoscalerId",
+                  "value": "{{autoscalerId}}",
+                  "description": "Unique identifier of the autoscaler."
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "400",
+          "code": 400,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "404",
+          "originalRequest": {
+            "method": "POST",
+            "description": "Manually override autoscaling for a bounded time window\n\nResponses:\n- 200: Override applied successfully.\n- 400: Response\n- 404: Response\n- 409: Autoscaler is not in a state that supports this override.\n- 500: Response",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers/:autoscalerId/override",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers",
+                ":autoscalerId",
+                "override"
+              ],
+              "variable": [
+                {
+                  "key": "autoscalerId",
+                  "value": "{{autoscalerId}}",
+                  "description": "Unique identifier of the autoscaler."
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "404",
+          "code": 404,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "409 Autoscaler is not in a state that supports this override.",
+          "originalRequest": {
+            "method": "POST",
+            "description": "Manually override autoscaling for a bounded time window\n\nResponses:\n- 200: Override applied successfully.\n- 400: Response\n- 404: Response\n- 409: Autoscaler is not in a state that supports this override.\n- 500: Response",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers/:autoscalerId/override",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers",
+                ":autoscalerId",
+                "override"
+              ],
+              "variable": [
+                {
+                  "key": "autoscalerId",
+                  "value": "{{autoscalerId}}",
+                  "description": "Unique identifier of the autoscaler."
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "Autoscaler is not in a state that supports this override.",
+          "code": 409,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        },
+        {
+          "name": "500",
+          "originalRequest": {
+            "method": "POST",
+            "description": "Manually override autoscaling for a bounded time window\n\nResponses:\n- 200: Override applied successfully.\n- 400: Response\n- 404: Response\n- 409: Autoscaler is not in a state that supports this override.\n- 500: Response",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/autoscalers/:autoscalerId/override",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "autoscalers",
+                ":autoscalerId",
+                "override"
+              ],
+              "variable": [
+                {
+                  "key": "autoscalerId",
+                  "value": "{{autoscalerId}}",
+                  "description": "Unique identifier of the autoscaler."
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "status": "500",
+          "code": 500,
+          "_postman_previewlanguage": "json",
+          "header": [],
+          "body": ""
+        }
+      ]
+    }
+  ]
+}
