@@ -1,0 +1,787 @@
+openapi: 3.0.3
+info:
+  title: Kafka Lag Autoscaler
+  version: 1.0.0
+  description: |
+    Intelligent autoscaling for Kafka consumer groups based on real-time lag, 
+    throughput, and predicted workload. Scales consumer pods up within seconds 
+    of lag spikes, scales down gracefully after catch-up, and respects peak 
+    hours, cost budgets, and per-topic scaling limits. Eliminates the classic 
+    "consumer lag built up overnight because nobody was watching" scenario 
+    while preventing runaway consumer sprawl that inflates cloud bills.
+  contact:
+    name: ForgeSphere Streaming Platform
+    email: streaming@forgesphere.example.com
+
+servers:
+  - url: https://kafka-autoscaler.forgesphere.lightning.com/v1
+    description: Production Server
+  - url: http://localhost:8150/v1
+    description: Local Development Server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Autoscalers
+    description: Configure and manage autoscaling policies per consumer group.
+
+paths:
+  # ==================== 1 & 2. AUTOSCALERS (POST + GET) ====================
+  /autoscalers:
+    post:
+      tags: [Autoscalers]
+      summary: Register an autoscaler for a Kafka consumer group
+      description: |
+        Creates an autoscaling policy for a consumer group. The policy 
+        defines scaling targets (min/max replicas), trigger thresholds 
+        (lag, throughput, lag growth rate), cooldown windows, and scaling 
+        strategy (aggressive, balanced, conservative). Once active, the 
+        autoscaler continuously evaluates lag metrics and adjusts replicas 
+        automatically within the configured bounds.
+      operationId: createAutoscaler
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [consumerGroupId, topicName, clusterName, workloadName, namespace, minReplicas, maxReplicas, scalingStrategy, triggers]
+              properties:
+                consumerGroupId:
+                  type: string
+                  description: "Kafka consumer group identifier."
+                  example: "payment-processor-consumer-group"
+                topicName:
+                  type: string
+                  description: "Topic being consumed."
+                  example: "payments.transactions.v1"
+                clusterName:
+                  type: string
+                  description: "Kafka cluster."
+                  example: "prod-kafka-us-east-1"
+                workloadName:
+                  type: string
+                  description: "Kubernetes workload to scale."
+                  example: "payment-processor-consumer"
+                namespace:
+                  type: string
+                  example: "payments"
+                minReplicas:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  description: "Floor — never scale below this."
+                  example: 2
+                maxReplicas:
+                  type: integer
+                  minimum: 1
+                  maximum: 200
+                  description: "Ceiling — never scale above this."
+                  example: 20
+                initialReplicas:
+                  type: integer
+                  minimum: 1
+                  maximum: 200
+                  description: "Starting replica count when the policy activates."
+                  example: 4
+                scalingStrategy:
+                  type: string
+                  enum: [AGGRESSIVE, BALANCED, CONSERVATIVE]
+                  description: |
+                    AGGRESSIVE: scale up fast, scale down fast (cost-optimized).
+                    BALANCED: moderate on both sides (default).
+                    CONSERVATIVE: slow scale-up, very slow scale-down (SLA-optimized).
+                  example: "BALANCED"
+                triggers:
+                  type: array
+                  minItems: 1
+                  description: "Conditions that trigger scaling. All triggers evaluated together."
+                  items:
+                    type: object
+                    required: [triggerType, scaleUpThreshold, scaleDownThreshold]
+                    properties:
+                      triggerType:
+                        type: string
+                        enum: [LAG_MESSAGES, LAG_GROWTH_PER_MINUTE, LAG_DURATION_SECONDS, THROUGHPUT_PER_CONSUMER, PARTITION_ASSIGNMENT_IMBALANCE]
+                        description: "Metric used for scaling decisions."
+                        example: "LAG_MESSAGES"
+                      scaleUpThreshold:
+                        type: number
+                        format: double
+                        description: "Above this value → scale up."
+                        example: 50000
+                      scaleDownThreshold:
+                        type: number
+                        format: double
+                        description: "Below this value → scale down (subject to cooldown)."
+                        example: 5000
+                      evaluationWindowSeconds:
+                        type: integer
+                        default: 60
+                        description: "How long the metric must stay above/below threshold."
+                        example: 60
+                cooldowns:
+                  type: object
+                  description: "Time to wait between scaling operations."
+                  properties:
+                    scaleUpCooldownSeconds:
+                      type: integer
+                      minimum: 30
+                      maximum: 900
+                      default: 120
+                      description: "Wait before another scale-up."
+                      example: 60
+                    scaleDownCooldownSeconds:
+                      type: integer
+                      minimum: 300
+                      maximum: 3600
+                      default: 1800
+                      description: "Wait before another scale-down (prevents flapping)."
+                      example: 900
+                peakHoursPolicy:
+                  type: object
+                  description: "Optional. Aggressive during peak, conservative off-peak."
+                  properties:
+                    peakWindows:
+                      type: array
+                      description: "Peak windows in UTC (HH:MM-HH:MM format)."
+                      items:
+                        type: string
+                      example: ["09:00-18:00", "20:00-23:00"]
+                    peakScalingMultiplier:
+                      type: number
+                      format: double
+                      description: "Scale thresholds divided by this during peak."
+                      example: 2.0
+                costBudget:
+                  type: object
+                  description: "Optional. Cap scaling cost."
+                  properties:
+                    maxMonthlyCostUSD:
+                      type: number
+                      format: double
+                      example: 1500.00
+                    currentMonthlyCostUSD:
+                      type: number
+                      format: double
+                      example: 342.50
+                    budgetExceededBehavior:
+                      type: string
+                      enum: [STOP_SCALING, SCALE_DOWN_TO_MIN, ALERT_ONLY]
+                      example: "STOP_SCALING"
+                scheduleOverrides:
+                  type: array
+                  description: "Optional. Fixed replica counts for specific time windows (e.g., batch jobs)."
+                  items:
+                    type: object
+                    properties:
+                      dayOfWeek:
+                        type: string
+                        enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY, EVERY_DAY]
+                        example: "SATURDAY"
+                      startTime:
+                        type: string
+                        example: "02:00"
+                      endTime:
+                        type: string
+                        example: "04:00"
+                      replicas:
+                        type: integer
+                        example: 12
+                owner:
+                  type: string
+                  description: "Team owning this autoscaler."
+                  example: "payments-team"
+                notifyChannels:
+                  type: array
+                  items:
+                    type: string
+                    enum: [EMAIL, SLACK, PAGERDUTY, WEBHOOK]
+                  description: "Where to alert on scaling events or failures."
+                  example: ["SLACK"]
+      responses:
+        '201':
+          description: Autoscaler registered and active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Autoscaler'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: An autoscaler already exists for this consumer group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      tags: [Autoscalers]
+      summary: List all autoscalers
+      description: |
+        Returns all configured autoscalers with current replica count, lag, 
+        and health status. Used by platform teams to audit coverage and by 
+        service owners to check their consumer groups.
+      operationId: listAutoscalers
+      parameters:
+        - name: clusterName
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filter by Kafka cluster."
+          example: "prod-kafka-us-east-1"
+        - name: namespace
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filter by Kubernetes namespace."
+          example: "payments"
+        - name: owner
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filter by owning team."
+          example: "payments-team"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, PAUSED, DEGRADED, FAILED, DISABLED]
+          description: "Filter by autoscaler status."
+        - name: hasHighLag
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: "Only show autoscalers currently above their scale-up threshold."
+        - name: atMaxReplicas
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: "Only show autoscalers running at maxReplicas (potentially under-scaled)."
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [CURRENT_LAG, REPLICA_COUNT, COST, LAST_SCALED_AT, NAME]
+            default: CURRENT_LAG
+          description: "Sort order."
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: "Page number (zero-based)."
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: "Number of items per page."
+      responses:
+        '200':
+          description: List of autoscalers retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutoscalerList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 3. GET AUTOSCALER DETAILS ====================
+  /autoscalers/{autoscalerId}:
+    get:
+      tags: [Autoscalers]
+      summary: Get detailed state of an autoscaler
+      description: |
+        Returns the full autoscaler state — current replicas, live lag, 
+        historical scaling events, per-partition lag distribution, and 
+        predicted time-to-catch-up. Includes the reasoning behind the most 
+        recent scaling decision.
+      operationId: getAutoscaler
+      parameters:
+        - name: autoscalerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: "Unique identifier of the autoscaler."
+          example: "9c8f1a3b-6d7e-4a12-8f5e-123456789abc"
+        - name: includeScalingHistory
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: "Include last 50 scaling events."
+          example: true
+        - name: includePartitionLag
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: "Include per-partition lag breakdown (useful for hotspot detection)."
+          example: true
+      responses:
+        '200':
+          description: Autoscaler details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Autoscaler'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ==================== 4. MANUAL OVERRIDE ====================
+  /autoscalers/{autoscalerId}/override:
+    post:
+      tags: [Autoscalers]
+      summary: Manually override autoscaling for a bounded time window
+      description: |
+        Pauses automatic scaling and forces a fixed replica count for a 
+        specified duration. Use cases: pinning during a critical demo, 
+        pre-scaling before a known event, or overriding during incident 
+        response. Autoscaling resumes automatically when the override expires.
+      operationId: overrideAutoscaler
+      parameters:
+        - name: autoscalerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: "Unique identifier of the autoscaler."
+          example: "9c8f1a3b-6d7e-4a12-8f5e-123456789abc"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, reason]
+              properties:
+                action:
+                  type: string
+                  enum: [PAUSE, RESUME, FORCE_REPLICAS, FORCE_SCALE_UP_NOW, FORCE_SCALE_DOWN_NOW]
+                  description: "Override action."
+                  example: "FORCE_REPLICAS"
+                reason:
+                  type: string
+                  minLength: 15
+                  description: "Reason for the override (min 15 chars)."
+                  example: "Pre-scaling for Diwali sale peak; reverting in 8 hours."
+                forcedReplicas:
+                  type: integer
+                  minimum: 1
+                  maximum: 200
+                  description: "Required when action = FORCE_REPLICAS."
+                  example: 15
+                durationMinutes:
+                  type: integer
+                  minimum: 5
+                  maximum: 1440
+                  description: "How long the override stays active."
+                  example: 480
+                requestedBy:
+                  type: string
+                  example: "sre.oncall@forgesphere.example.com"
+                notifyChannels:
+                  type: array
+                  items:
+                    type: string
+                    enum: [EMAIL, SLACK, PAGERDUTY, WEBHOOK]
+                  example: ["SLACK"]
+      responses:
+        '200':
+          description: Override applied successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Autoscaler'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Autoscaler is not in a state that supports this override.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT token issued to platform engineers, SREs, or service owners."
+
+  schemas:
+    Autoscaler:
+      type: object
+      required: [autoscalerId, consumerGroupId, topicName, clusterName, workloadName, status, currentReplicas, minReplicas, maxReplicas, liveLag, createdAt]
+      properties:
+        autoscalerId:
+          type: string
+          format: uuid
+          example: "9c8f1a3b-6d7e-4a12-8f5e-123456789abc"
+        consumerGroupId:
+          type: string
+          example: "payment-processor-consumer-group"
+        topicName:
+          type: string
+          example: "payments.transactions.v1"
+        clusterName:
+          type: string
+          example: "prod-kafka-us-east-1"
+        workloadName:
+          type: string
+          example: "payment-processor-consumer"
+        namespace:
+          type: string
+          example: "payments"
+        status:
+          type: string
+          enum: [ACTIVE, PAUSED, DEGRADED, FAILED, DISABLED, OVERRIDE]
+          example: "ACTIVE"
+        scalingStrategy:
+          type: string
+          enum: [AGGRESSIVE, BALANCED, CONSERVATIVE]
+          example: "BALANCED"
+        minReplicas:
+          type: integer
+          example: 2
+        maxReplicas:
+          type: integer
+          example: 20
+        currentReplicas:
+          type: integer
+          example: 6
+        atMaxReplicas:
+          type: boolean
+          description: "True if currently running at maxReplicas (potentially under-provisioned)."
+          example: false
+        liveLag:
+          type: object
+          required: [totalMessages, growthPerMinute, estimatedCatchUpSeconds]
+          properties:
+            totalMessages:
+              type: integer
+              description: "Sum of lag across all partitions."
+              example: 342000
+            growthPerMinute:
+              type: integer
+              description: "Rate at which lag is increasing (negative = catching up)."
+              example: 4200
+            estimatedCatchUpSeconds:
+              type: integer
+              description: "At current throughput, how long to reach zero lag."
+              example: 1800
+            consumerThroughputPerSecond:
+              type: number
+              format: double
+              example: 850.5
+            producerThroughputPerSecond:
+              type: number
+              format: double
+              example: 912.3
+        partitionLag:
+          type: array
+          description: "Per-partition lag (if includePartitionLag=true)."
+          items:
+            type: object
+            properties:
+              partition:
+                type: integer
+                example: 3
+              lagMessages:
+                type: integer
+                example: 8900
+              assignedConsumer:
+                type: string
+                example: "payment-processor-consumer-7f8b9c-abc12"
+              consumedRate:
+                type: number
+                format: double
+                example: 145.2
+              isHotPartition:
+                type: boolean
+                description: "True if this partition has 3x the median lag."
+                example: false
+        triggers:
+          type: array
+          items:
+            type: object
+            properties:
+              triggerType:
+                type: string
+                enum: [LAG_MESSAGES, LAG_GROWTH_PER_MINUTE, LAG_DURATION_SECONDS, THROUGHPUT_PER_CONSUMER, PARTITION_ASSIGNMENT_IMBALANCE]
+                example: "LAG_MESSAGES"
+              scaleUpThreshold:
+                type: number
+                format: double
+                example: 50000
+              scaleDownThreshold:
+                type: number
+                format: double
+                example: 5000
+              currentValue:
+                type: number
+                format: double
+                description: "Live value for this trigger."
+                example: 342000
+              state:
+                type: string
+                enum: [BELOW_THRESHOLDS, ABOVE_SCALE_UP, BELOW_SCALE_DOWN, IN_COOLDOWN]
+                example: "ABOVE_SCALE_UP"
+        cooldowns:
+          type: object
+          properties:
+            scaleUpCooldownSeconds:
+              type: integer
+              example: 60
+            scaleDownCooldownSeconds:
+              type: integer
+              example: 900
+            lastScaledAt:
+              type: string
+              format: date-time
+            lastScaledDirection:
+              type: string
+              enum: [UP, DOWN, NONE]
+              example: "UP"
+            nextScaleEarliestAt:
+              type: string
+              format: date-time
+        costBudget:
+          type: object
+          properties:
+            maxMonthlyCostUSD:
+              type: number
+              format: double
+              example: 1500.00
+            currentMonthlyCostUSD:
+              type: number
+              format: double
+              example: 342.50
+            projectedMonthlyCostUSD:
+              type: number
+              format: double
+              description: "At current replica count, extrapolated."
+              example: 580.00
+            budgetUtilizationPercent:
+              type: number
+              format: double
+              example: 22.8
+            budgetStatus:
+              type: string
+              enum: [UNDER_BUDGET, APPROACHING, EXCEEDED]
+              example: "UNDER_BUDGET"
+        owner:
+          type: string
+          example: "payments-team"
+        notifyChannels:
+          type: array
+          items:
+            type: string
+            enum: [EMAIL, SLACK, PAGERDUTY, WEBHOOK]
+          example: ["SLACK"]
+        lastScalingDecision:
+          type: object
+          description: "Why the last scaling action was taken."
+          properties:
+            decidedAt:
+              type: string
+              format: date-time
+            action:
+              type: string
+              enum: [SCALE_UP, SCALE_DOWN, NO_ACTION, OVERRIDE, BLOCKED_BY_BUDGET, BLOCKED_BY_COOLDOWN]
+              example: "SCALE_UP"
+            fromReplicas:
+              type: integer
+              example: 4
+            toReplicas:
+              type: integer
+              example: 6
+            reasoning:
+              type: string
+              example: "Lag 342K > threshold 50K for 90s; scale-up 4 → 6 (strategy=BALANCED)."
+        scalingHistory:
+          type: array
+          description: "Recent scaling events (if includeScalingHistory=true)."
+          items:
+            type: object
+            properties:
+              occurredAt:
+                type: string
+                format: date-time
+              action:
+                type: string
+                enum: [SCALE_UP, SCALE_DOWN, NO_ACTION, OVERRIDE, BLOCKED_BY_BUDGET]
+                example: "SCALE_UP"
+              fromReplicas:
+                type: integer
+                example: 4
+              toReplicas:
+                type: integer
+                example: 6
+              triggerType:
+                type: string
+                enum: [LAG_MESSAGES, LAG_GROWTH_PER_MINUTE, LAG_DURATION_SECONDS, THROUGHPUT_PER_CONSUMER, PARTITION_ASSIGNMENT_IMBALANCE]
+                example: "LAG_MESSAGES"
+              triggerValue:
+                type: number
+                format: double
+                example: 342000
+              reasoning:
+                type: string
+        activeOverride:
+          type: object
+          description: "Present if status = OVERRIDE."
+          properties:
+            action:
+              type: string
+              enum: [PAUSE, FORCE_REPLICAS, FORCE_SCALE_UP_NOW, FORCE_SCALE_DOWN_NOW]
+              example: "FORCE_REPLICAS"
+            forcedReplicas:
+              type: integer
+              example: 15
+            reason:
+              type: string
+              example: "Pre-scaling for Diwali sale peak."
+            requestedBy:
+              type: string
+              example: "sre.oncall@forgesphere.example.com"
+            startedAt:
+              type: string
+              format: date-time
+            expiresAt:
+              type: string
+              format: date-time
+              example: "2026-11-10T22:30:00Z"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        auditReference:
+          type: string
+          example: "audit://kafka-autoscaler/autoscaler-9c8f1a3b"
+
+    AutoscalerList:
+      type: object
+      required: [content, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Autoscaler'
+        totalElements:
+          type: integer
+          example: 87
+        totalPages:
+          type: integer
+          example: 5
+        page:
+          type: integer
+          example: 0
+        size:
+          type: integer
+          example: 20
+        summary:
+          type: object
+          properties:
+            totalAutoscalers:
+              type: integer
+              example: 87
+            active:
+              type: integer
+              example: 74
+            paused:
+              type: integer
+              example: 8
+            degraded:
+              type: integer
+              example: 3
+            atMaxReplicas:
+              type: integer
+              description: "Consumer groups currently capped at maxReplicas."
+              example: 5
+            totalLiveLag:
+              type: integer
+              example: 2450000
+            totalCurrentReplicas:
+              type: integer
+              example: 342
+            totalMonthlyCostUSD:
+              type: number
+              format: double
+              example: 8420.50
+            topLaggingGroup:
+              type: string
+              example: "analytics-ingest-consumer-group"
+
+    ErrorResponse:
+      type: object
+      required: [status, message, timestamp, path]
+      properties:
+        status:
+          type: integer
+          example: 409
+        errorCode:
+          type: string
+          example: "OVERRIDE_ALREADY_ACTIVE"
+        message:
+          type: string
+          example: "An override is already active for this autoscaler until 2026-11-10T22:30:00Z."
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          example: "/v1/autoscalers/9c8f1a3b/override"
+        serviceTransactionId:
+          type: string
+          example: "523f52b2-64a5-465e-b245-3efbe78f70ae"
+
+  responses:
+    BadRequest:
+      description: Invalid request payload or missing required fields.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Autoscaler not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
